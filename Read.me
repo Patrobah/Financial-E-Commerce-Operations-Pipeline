@@ -1,0 +1,206 @@
+# 📊 Project 7: Financial & E-Commerce Operations Pipeline
+## Automated Global SaaS Ledger Normalization Engine
+
+An end-to-end corporate financial operations pipeline that simulates, cleans, normalizes, and analyzes multi-currency transactional streams for a global Software-as-a-Service (SaaS) enterprise. This project demonstrates advanced data engineering workflows bridging **Python automation scripts**, **relational schema structures**, **Excel VBA macros**, and **SaaS business intelligence models**.
+
+---
+
+## 🏗️ System Architecture & Sheet Structure
+The analytics engine is contained within a macro-enabled workbook (`SaaS_Corporate_Engine.xlsm`) split into four distinct dimensional layouts:
+1. **`Data_Master`:** The raw landing zone. Holds unformatted, messy multi-currency transaction records generated via the automated Python data pipeline.
+2. **`Analytical_Engine`:** The data cleansing interface. Populated entirely via an automated, transaction-looping VBA Macro that reads from `Data_Master`, runs dynamic relational lookups, standardizes formatting anomalies, and converts all balances into a unified **Base USD** tracking layer.
+3. **`Summary_Analytics`:** An executive dashboard translating normalized accounting rows into dynamic financial KPIs via robust, macro-resilient statistical equations.
+4. **`Relational_Schema`:** A decoupled reference mapping layer housing dimensional configuration data (exchange coefficients, plan models, tax brackets) to prevent hardcoding values inside the execution script.
+
+---
+
+## 🐍 1. Python Simulation Layer Code (`Generate_ledger.py`)
+This script executes inside the PyCharm environment using `Pandas` and `openpyxl`. It algorithmically simulates a 500-line global SaaS historical ledger across three distinct contract plans and multiple currencies (**USD, EUR, KES**). To stress-test the normalization pipeline, it deliberately introduces realistic data friction (missing amounts, broken dates, mixed casing tokens):
+
+```python
+import os
+import random
+import pandas as pd
+from datetime import datetime, timedelta
+
+def create_raw_saas_ledger():
+    base_dir = os.path.dirname(os.path.abspath(__file__))
+    output_path = os.path.join(base_dir, 'SaaS_Raw_Ledger.xlsx')
+
+    currencies = ['USD', 'EUR', 'KES']
+    plans = ['Basic_Monthly', 'Pro_Monthly', 'Enterprise_Annual']
+    statuses = ['Success', 'Failed', 'Refunded', None]
+
+    records = []
+    start_date = datetime(2026, 1, 1)
+
+    print("🚀 Simulating 500 global e-commerce transaction lines...")
+    for i in range(1001, 1501):
+        tx_id = f"TXN-{i}"
+        date_val = start_date + timedelta(days=random.randint(0, 280), hours=random.randint(0, 23))
+        cust_id = f"CUST-{random.randint(5000, 9999)}"
+        plan = random.choice(plans)
+        currency = random.choice(currencies)
+        status = random.choices(statuses, weights=[0.85, 0.08, 0.05, 0.02], k=1)[0]
+
+        if 'Basic' in plan:
+            amount = 29.0
+        elif 'Pro' in plan:
+            amount = 99.0
+        else:
+            amount = 1200.0
+
+        if random.random() < 0.15:
+            currency = currency.lower()
+
+        records.append({
+            'Transaction_ID': tx_id,
+            'Timestamp': date_val.strftime('%Y-%m-%d %H:%M:%S') if random.random() > 0.05 else date_val.strftime('%d/%m/%Y'),
+            'Customer_ID': cust_id,
+            'Plan_Type': plan,
+            'Raw_Amount': amount if random.random() > 0.03 else None,
+            'Currency': currency,
+            'Payment_Status': status
+        })
+
+    df = pd.DataFrame(records)
+
+    with pd.ExcelWriter(output_path, engine='openpyxl') as writer:
+        df.to_excel(writer, sheet_name='Data_Master', index=False)
+
+    print(f"🎉 Raw pipeline source file successfully compiled at: {output_path}")
+
+if __name__ == '__main__':
+    create_raw_saas_ledger()
+```
+
+---
+
+## vba 2. VBA Normalization Machine Code (`NormalizeGlobalSaaS_Ledger`)
+Developed a highly resilient, automated transformation macro in Excel. Instead of hardcoding static exchange rates, it dynamically executes lookups against the decoupled database arrays sitting in the `Relational_Schema` tab, logging transactional logs and catching malformed fields gracefully:
+
+```vba
+Sub NormalizeGlobalSaaS_Ledger()
+    Dim wsMaster As Worksheet
+    Dim wsEngine As Worksheet
+    Dim wsSchema As Worksheet
+    Dim lastRow As Long
+    Dim i As Long
+
+    Dim rawAmount As Variant
+    Dim currencyStr As String
+    Dim normalizedAmount As Double
+    Dim rateMultiplier As Variant
+
+    On Error GoTo ErrorHandler
+
+    Set wsMaster = ThisWorkbook.Sheets("Data_Master")
+    Set wsSchema = ThisWorkbook.Sheets("Relational_Schema")
+
+    ' Clear out prior automated processing sheets to prevent overlap duplication
+    On Error Resume Next
+    Application.DisplayAlerts = False
+    ThisWorkbook.Sheets("Analytical_Engine").Delete
+    Application.DisplayAlerts = True
+    On Error GoTo ErrorHandler
+
+    Set wsEngine = ThisWorkbook.Sheets.Add(After:=wsMaster)
+    wsEngine.Name = "Analytical_Engine"
+
+    ' Design Relational Column Headers
+    wsEngine.Cells(1, 1).Value = "Transaction_ID"
+    wsEngine.Cells(1, 2).Value = "Timestamp"
+    wsEngine.Cells(1, 3).Value = "Customer_ID"
+    wsEngine.Cells(1, 4).Value = "Plan_Type"
+    wsEngine.Cells(1, 5).Value = "Original_Amount"
+    wsEngine.Cells(1, 6).Value = "Original_Currency"
+    wsEngine.Cells(1, 7).Value = "Normalized_Amount_USD"
+    wsEngine.Cells(1, 8).Value = "Pipeline_Audit_Status"
+
+    With wsEngine.Rows(1)
+        .Font.Bold = True
+        .Interior.Color = RGB(44, 62, 80)
+        .Font.Color = RGB(255, 255, 255)
+    End With
+
+    lastRow = wsMaster.Cells(wsMaster.Rows.Count, "A").End(xlUp).Row
+
+    For i = 2 To lastRow
+        wsEngine.Cells(i, 1).Value = wsMaster.Cells(i, 1).Value
+        wsEngine.Cells(i, 2).Value = wsMaster.Cells(i, 2).Value
+        wsEngine.Cells(i, 3).Value = wsMaster.Cells(i, 3).Value
+        wsEngine.Cells(i, 4).Value = wsMaster.Cells(i, 4).Value
+
+        rawAmount = wsMaster.Cells(i, 5).Value
+        currencyStr = UCase(Trim(wsMaster.Cells(i, 6).Value))
+
+        wsEngine.Cells(i, 5).Value = rawAmount
+        wsEngine.Cells(i, 6).Value = currencyStr
+
+        If IsEmpty(rawAmount) Or rawAmount <= 0 Or IsNull(rawAmount) Then
+            wsEngine.Cells(i, 7).Value = 0
+            wsEngine.Cells(i, 8).Value = "CRITICAL: Missing Core Transaction Value"
+            wsEngine.Rows(i).Interior.Color = RGB(255, 235, 204)
+        Else
+            ' DYNAMIC RELATIONAL LOOKUP: Fetch exchange multiplier from the Relational_Schema sheet range
+            rateMultiplier = Application.VLookup(currencyStr, wsSchema.Range("A2:B10"), 2, False)
+
+            If IsError(rateMultiplier) Then
+                wsEngine.Cells(i, 7).Value = CDbl(rawAmount)
+                wsEngine.Cells(i, 8).Value = "WARNING: Currency Code Missing From Schema Map"
+                wsEngine.Rows(i).Interior.Color = RGB(255, 204, 204)
+            Else
+                normalizedAmount = CDbl(rawAmount) * CDbl(rateMultiplier)
+                wsEngine.Cells(i, 7).Value = normalizedAmount
+                wsEngine.Cells(i, 8).Value = "Passed: Normalized via Relational Schema lookup"
+            End If
+
+            wsEngine.Cells(i, 7).NumberFormat = "$#,##0.00"
+        End If
+    Next i
+
+    wsEngine.Columns("A:H").AutoFit
+    MsgBox "🎉 Data Operational Normalization Complete via Relational Schema Tables!", vbInformation, "Pipeline Success"
+    Exit Sub
+
+ErrorHandler:
+    MsgBox "❌ Operational pipeline crash: " & Err.Description, vbCritical, "System Architecture Fault"
+End Sub
+```
+
+---
+
+## 🗃️ 3. Relational Schema Blueprint (`Relational_Schema`)
+To prevent coding rigidity, the system isolates operational variables within standalone lookup matrix zones on a dedicated metadata canvas:
+*   **`Dim_Currency` (Columns A–C):** Relational schema table mapping raw regional currency tokens (`USD`, `EUR`, `KES`) directly to static USD exchange thresholds and localized corporate sales tax percentages.
+*   **`Dim_Plans` (Columns E–G):** Product master data defining core software service parameters against product subscription packages, billing frequencies, and base valuations.
+
+---
+
+## 📈 4. Financial Telemetry & Dashboard Logic (`Summary_Analytics`)
+The metric computation console uses advanced, macro-resilient array boundaries. To circumvent the `#REF!` error caused by the macro dropping and rebuilding sheet data lanes, it integrates structural text-sandboxed references using the `INDIRECT` compilation method:
+
+*   **Active Customer Contracts Tracking:**
+    ```excel
+    =COUNTIF(INDIRECT("Analytical_Engine!D:D"), A7)
+    ```
+*   **Gross Consolidated Revenue Aggregation:**
+    ```excel
+    =SUMIF(INDIRECT("Analytical_Engine!D:D"), A7, INDIRECT("Analytical_Engine!G:G"))
+    ```
+*   **Monthly Recurring Revenue (MRR Run-rate):** Adjusts annual enterprise contracts down to their precise monthly fractional equivalence (`Enterprise_Annual / 12`) to display true monthly baseline performance values:
+    ```excel
+    =C7 + C8 + (C9 / 12)
+    ```
+*   **Annual Recurring Revenue (ARR Projection):** Automatically outputs calculated indicators utilizing absolute financial text currency formats (`$#,##0.00`):
+    ```excel
+    =MRR * 12
+    ```
+
+---
+
+## 💻 Technical Stack Profile
+- **IDE Workspace Development Environment:** PyCharm Professional / Community Edition
+- **Data Engineering Languages:** Python 3.x, Visual Basic for Applications (VBA)
+- **Primary Data Packages:** Pandas, OpenPyXL, Excel Core Analytical Engine
+- **Financial Framework Models:** SaaS Subscription Framework, Multi-Currency Ingestion, Relational Schema Normalization
